@@ -66,6 +66,7 @@ jobs:
             sudo chmod -R 755 $DEPLOY_DIR
 
             # Restart Apache to apply changes (optional, only if needed)
+            sudo systemctl daemon-reload
             sudo systemctl restart apache2
 
             # Verify Apache is running
