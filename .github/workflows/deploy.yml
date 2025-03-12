@@ -1,0 +1,78 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout your repository code
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. (Optional) Validate HTML/CSS/JS (e.g., using a linter)
+      # If you have a build step (e.g., npm for JS or a static site generator), add it here
+      - name: Validate Frontend Files
+        run: |
+          echo "Running basic validation (customize as needed)"
+          # Example: Check if index.html exists
+          if [ ! -f "index.html" ]; then
+            echo "Error: index.html not found in frontend directory"
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy to EC2 (Apache)
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code for deployment
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Deploy to EC2 via SSH
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          debug: true  # Enable debug output for troubleshooting
+          script: |
+            # Define the deployment directory (Apache's default web root)
+            DEPLOY_DIR="/var/www/html"
+
+            # Ensure the deployment directory exists
+            sudo mkdir -p $DEPLOY_DIR
+
+            # Pull the latest code from the repository (alternative to rsync)
+            cd /tmp
+            git clone --depth 1 https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>.git temp_repo
+            cd temp_repo
+
+            # Copy frontend files to Apache directory
+            sudo cp -r * $DEPLOY_DIR/
+
+            # Clean up temporary directory
+            cd .. && rm -rf temp_repo
+
+            # Set proper permissions for Apache
+            sudo chown -R www-data:www-data $DEPLOY_DIR
+            sudo chmod -R 755 $DEPLOY_DIR
+
+            # Restart Apache to apply changes (optional, only if needed)
+            sudo systemctl restart apache2
+
+            # Verify Apache is running
+            if systemctl is-active apache2 > /dev/null; then
+              echo "Apache server is running successfully"
+              exit 0
+            else
+              echo "Failed to restart Apache server"
+              exit 1
+            fi
