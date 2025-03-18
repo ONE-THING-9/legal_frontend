@@ -45,7 +45,7 @@ jobs:
           debug: true  # Enable debug output for troubleshooting
           script: |
             # Define the deployment directory (Apache's default web root)
-            DEPLOY_DIR="/var/www/legal/public_html/"
+            DEPLOY_DIR="/var/www/legal/"
 
             # Ensure the deployment directory exists
             sudo mkdir -p $DEPLOY_DIR
