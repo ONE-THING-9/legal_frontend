@@ -1,6 +1,6 @@
 // List of districts
 const districts = [
-  "AAAAAAMBALA",
+  "AMBALA",
   "Anti Corruption Bureau, Haryana",
   "BHIWANI",
   "CHARKHI DADRI",
