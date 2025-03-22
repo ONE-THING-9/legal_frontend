@@ -75,12 +75,12 @@
       align-self: flex-end;
     }
     .logo-container {
-      padding: 20px;
+      padding: 12px;
     }
     .logo-container img {
-      width: 200px;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      width: 180px;
+      border-radius: 8px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
     }
     /* Add styles for markdown content in chat bubbles */
     .chat-bubble.bot-message {
@@ -182,6 +182,41 @@
       transform: scale(1.1);
       transition: transform 0.2s;
     }
+
+    /* Dropdown container styles */
+    .dropdown-container {
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .dropdown-container .form-group {
+      margin-bottom: 10px;
+    }
+    
+    .dropdown-container label {
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    
+    .dropdown-container select {
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      padding: 5px 8px;
+      width: 100%;
+      transition: border-color 0.3s;
+      height: auto;
+      font-size: 0.9rem;
+    }
+    
+    .dropdown-container select:focus {
+      border-color: #4267B2;
+      box-shadow: 0 0 0 0.2rem rgba(66, 103, 178, 0.25);
+    }
   </style>
 </head>
 <body>
@@ -195,6 +230,40 @@
     <div class="row">
       <div class="col logo-container">
         <img src="./resources/logo.png" alt="Logo">
+      </div>
+    </div>
+    
+    <!-- Add dropdown container -->
+    <div class="row">
+      <div class="col">
+        <div class="dropdown-container">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="draftType">Draft Type</label>
+                <select id="draftType" class="form-select form-select-sm">
+                  <option value="" selected disabled>Select Draft Type</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="court">Court</label>
+                <select id="court" class="form-select form-select-sm">
+                  <option value="" selected disabled>Select Court</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div id="highCourtContainer" class="form-group" style="display: none;">
+                <label for="highCourt">High Court</label>
+                <select id="highCourt" class="form-select form-select-sm" disabled>
+                  <option value="" selected disabled>Select High Court</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -223,6 +292,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Include the config file -->
   <script src="./config.js"></script>
+  <!-- Include the dropdown data file -->
+  <script src="./dropdown-data.js"></script>
   <script>
     // Update the session checks at the start of script
     const sessionId = localStorage.getItem('session_id');
@@ -257,8 +328,152 @@
     const sendMessageBtn = document.getElementById('sendMessage');
     const clearChatBtn = document.getElementById('clearChat');
 
+    // Get references to the dropdown elements
+    const draftTypeSelect = document.getElementById('draftType');
+    const courtSelect = document.getElementById('court');
+    const highCourtSelect = document.getElementById('highCourt');
+    const highCourtContainer = document.getElementById('highCourtContainer');
+
     // Global variable to store the previous draft.
     let previousDraft = "";
+    
+    // Flag to track if automatic draft generation has happened
+    let autoDraftGenerated = false;
+
+    // Initialize dropdowns with values from dropdown-data.js
+    function initializeDropdowns() {
+      // Populate Draft Type dropdown
+      draftTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        draftTypeSelect.appendChild(option);
+      });
+
+      // Populate Court dropdown
+      courts.forEach(court => {
+        const option = document.createElement('option');
+        option.value = court;
+        option.textContent = court;
+        courtSelect.appendChild(option);
+      });
+
+      // Populate High Court dropdown
+      highCourts.forEach(court => {
+        const option = document.createElement('option');
+        option.value = court;
+        option.textContent = court;
+        highCourtSelect.appendChild(option);
+      });
+
+      // Add event listener to Court dropdown to toggle High Court dropdown
+      courtSelect.addEventListener('change', function() {
+        if (this.value === 'High Court') {
+          highCourtContainer.style.display = 'block';
+          highCourtSelect.disabled = false;
+          // Reset auto-draft flag when changing court selection
+          autoDraftGenerated = false;
+        } else {
+          highCourtContainer.style.display = 'none';
+          highCourtSelect.disabled = true;
+          highCourtSelect.selectedIndex = 0; // Reset selection
+          
+          // Check if we should auto-generate draft (Supreme Court case)
+          checkAndGenerateDraft();
+        }
+        
+        // Update send button state
+        updateSendButtonState();
+      });
+      
+      // Add event listeners to all dropdowns to check for auto-draft generation
+      draftTypeSelect.addEventListener('change', function() {
+        // Reset the autoDraftGenerated flag when draft type changes
+        autoDraftGenerated = false;
+        checkAndGenerateDraft();
+        // Update send button state
+        updateSendButtonState();
+      });
+      
+      highCourtSelect.addEventListener('change', function() {
+        checkAndGenerateDraft();
+        // Update send button state
+        updateSendButtonState();
+      });
+    }
+    
+    // Function to check if conditions are met for auto-generating a draft
+    function checkAndGenerateDraft() {
+      // Make sure we don't trigger multiple times
+      if (autoDraftGenerated) return;
+      
+      // Only proceed if selections are complete
+      if (areDropdownSelectionsComplete()) {
+        sendDraftRequest();
+        autoDraftGenerated = true;
+      }
+    }
+    
+    // Function to check if all necessary dropdown selections are complete
+    function areDropdownSelectionsComplete() {
+      const draftType = draftTypeSelect.value;
+      const court = courtSelect.value;
+      
+      // Case 1: Draft type selected and Supreme Court selected
+      if (draftType && draftType !== "" && court === "Supreme Court") {
+        return true;
+      }
+      // Case 2: Draft type selected, High Court selected, and specific high court selected
+      else if (draftType && draftType !== "" && court === "High Court" && 
+              highCourtSelect.value && highCourtSelect.value !== "") {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    // Function to send a draft request without a user message
+    function sendDraftRequest() {
+      setLoadingState(true);
+      const loadingSpinner = appendLoadingSpinner();
+      
+      // Create payload with null user message
+      const payload = createPayload(null);
+      
+      fetch(`${config.base_url}/get-draft`, {
+        method: 'POST',
+        headers: addSessionHeader({
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        }),
+        body: JSON.stringify(payload)
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Server error: " + response.statusText);
+        }
+        return response.json();
+      })
+      .then(result => {
+        if (result.status === "success" && result.data) {
+          const reply = result.data.chat_draft || "No reply returned.";
+          loadingSpinner.remove();
+          appendMessage(reply, "bot");
+          previousDraft = reply;
+          sessionStorage.setItem('latest_draft', reply);
+        } else {
+          loadingSpinner.remove();
+          appendMessage("Error: " + (result.message || "Unknown error occurred."), "bot");
+        }
+      })
+      .catch(error => {
+        loadingSpinner.remove();
+        appendMessage("Error: " + error.message, "bot");
+      })
+      .finally(() => {
+        setLoadingState(false);
+      });
+    }
 
     // Helper function to create a chat bubble.
     function createChatBubble(text, type) {
@@ -297,7 +512,9 @@
       } else {
         inputGroup.classList.remove('loading');
         userMessage.disabled = false;
-        sendMessage.disabled = false;
+        // Instead of enabling the send button directly, call updateSendButtonState
+        // to ensure it's only enabled if the dropdown conditions are met
+        updateSendButtonState();
       }
     }
 
@@ -313,12 +530,19 @@
       return spinner;
     }
 
-    // Update the payload creation to use chat_session_id
+    // Update the payload creation to include dropdown values
     function createPayload(userMessage = null) {
+      const draftType = draftTypeSelect.value;
+      const court = courtSelect.value;
+      const highCourt = court === 'High Court' ? highCourtSelect.value : null;
+      
       return {
         user_message: userMessage,
-        session_id: chatSessionId, // Use chat_session_id instead of session_id
-        user_id: userId
+        session_id: chatSessionId,
+        user_id: userId,
+        draft_type: draftType || null,
+        court: court || null,
+        high_court: highCourt
       };
     }
 
@@ -330,62 +554,11 @@
         return;
       }
       
-      setLoadingState(true);
-      const payload = createPayload();
-
-      fetch(`${config.base_url}/get-draft`, {
-        method: 'POST',
-        headers: addSessionHeader({
-          'Content-Type': 'application/json',
-          'accept': 'application/json'
-        }),
-        body: JSON.stringify(payload)
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Server error: " + response.statusText);
-        }
-        return response.json();
-      })
-      .then(result => {
-        if (result.status === "success") {
-          if (result.message && Array.isArray(result.message)) {
-            // Handle the list of message pairs
-            result.message.forEach(messagePair => {
-              const [userMessage, botResponse] = messagePair;
-              
-              // Add user message if it exists
-              if (userMessage) {
-                appendMessage(userMessage, "user");
-              }
-              
-              // Add bot response if it exists
-              if (botResponse) {
-                appendMessage(botResponse, "bot");
-              }
-            });
-          } else if (result.data && result.data.chat_draft) {
-            // Handle single message response
-            const draftText = result.data.chat_draft;
-            appendMessage(draftText, "bot");
-            previousDraft = draftText;
-            sessionStorage.setItem('latest_draft', draftText);
-          } else {
-            appendMessage("No draft content available.", "bot");
-          }
-        } else {
-          appendMessage("Error: " + (result.message || "Unknown error occurred."), "bot");
-        }
-      })
-      .catch(error => {
-        appendMessage("Error: " + error.message, "bot");
-      })
-      .finally(() => {
-        if (loadingMessageEl) {
-          loadingMessageEl.remove();
-        }
-        setLoadingState(false);
-      });
+      // Remove loading message and set loading state to false
+      if (loadingMessageEl) {
+        loadingMessageEl.remove();
+      }
+      setLoadingState(false);
     }
 
     // Send the user message to the get-draft API
@@ -435,9 +608,14 @@
     // Add event listener for input changes to control send button state
     userMessageInput.addEventListener('input', function() {
       const messageText = this.value.trim();
-      sendMessageBtn.disabled = messageText === '';
-      // Optional: Add visual feedback with opacity
-      sendMessageBtn.style.opacity = messageText === '' ? '0.5' : '1';
+      if (messageText === '') {
+        sendMessageBtn.disabled = true;
+        sendMessageBtn.style.opacity = '0.5';
+      } else if (areDropdownSelectionsComplete()) {
+        // Only enable if dropdown selections are complete AND there's text input
+        sendMessageBtn.disabled = false;
+        sendMessageBtn.style.opacity = '1';
+      }
     });
 
     // Update the initial state of the send button
@@ -451,9 +629,8 @@
       sendChatMessage(messageText);
       userMessageInput.value = "";
       userMessageInput.focus();
-      // Reset button state after sending
-      this.disabled = true;
-      this.style.opacity = '0.5';
+      // Update button state using our function rather than manually setting it
+      updateSendButtonState();
     });
 
     // Clear chat button event listener.
@@ -481,6 +658,8 @@
               bubble.remove();
             }
           });
+          // Reset the auto draft generated flag
+          autoDraftGenerated = false;
         } else {
           console.error("Failed to clear chat:", result.message);
         }
@@ -490,8 +669,13 @@
       });
     });
 
-    // Load the initial draft message when the page is ready.
-    document.addEventListener('DOMContentLoaded', loadInitialDraft);
+    // Load the welcome message and initialize dropdowns when the page is ready.
+    document.addEventListener('DOMContentLoaded', function() {
+      loadInitialDraft();
+      initializeDropdowns();
+      // Initialize send button state
+      updateSendButtonState();
+    });
 
     // Add logout functionality
     document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -516,6 +700,21 @@
         alert("Error during logout: " + error.message);
       }
     });
+
+    // Function to update the send button state based on dropdown selections
+    function updateSendButtonState() {
+      const messageText = userMessageInput.value.trim();
+      const dropdownsComplete = areDropdownSelectionsComplete();
+      
+      // Enable button only if there's text AND dropdown selections are complete
+      if (messageText !== '' && dropdownsComplete) {
+        sendMessageBtn.disabled = false;
+        sendMessageBtn.style.opacity = '1';
+      } else {
+        sendMessageBtn.disabled = true;
+        sendMessageBtn.style.opacity = '0.5';
+      }
+    }
   </script>
 </body>
 </html>
