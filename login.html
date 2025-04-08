@@ -135,7 +135,7 @@
         if (data.status === "success") {
           localStorage.setItem('user_id', userId);
           localStorage.setItem('session_id', data.session_id);
-          window.location.href = 'sessions.html';
+          window.location.href = 'menu.html';
         } else {
           errorDiv.textContent = data.message || 'Invalid credentials';
           errorDiv.style.display = 'block';

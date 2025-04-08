@@ -502,3 +502,40 @@ const districts = [
     'YAMUNA NAGAR CITY',
     'YAMUNA NAGAR SADAR']};
   
+const courtTypes = ['Panjab & Haryana High Court']; // Example list
+const caseTypes = ['CWP', 'CRM-M', 'CR', 'RSA', 'CRR', 'CRA-S', 'FAO', 'CM', 'CRM', 'ARB', 'ARB-DC', 'ARB-ICA', 'CA', 'CA-CWP', 'CA-MISC', 'CACP', 'CAPP'];
+
+const currentYear = new Date().getFullYear();
+const caseYears = [];
+for (let year = currentYear; year >= currentYear - 20; year--) { // Example: Last 20 years + current year
+    caseYears.push(year.toString());
+}
+
+const highCourtNames = [
+  "Allahabad High Court",
+  "Andhra Pradesh High Court",
+  "Bombay High Court",
+  "Calcutta High Court",
+  "Chhattisgarh High Court",
+  "Delhi High Court",
+  "Gauhati High Court",
+  "Gujarat High Court",
+  "Himachal Pradesh High Court",
+  "Jammu & Kashmir and Ladakh High Court",
+  "Jharkhand High Court",
+  "Karnataka High Court",
+  "Kerala High Court",
+  "Madhya Pradesh High Court",
+  "Madras High Court",
+  "Manipur High Court",
+  "Meghalaya High Court",
+  "Orissa High Court",
+  "Patna High Court",
+  "Punjab and Haryana High Court",
+  "Rajasthan High Court",
+  "Sikkim High Court",
+  "Telangana High Court",
+  "Tripura High Court",
+  "Uttarakhand High Court"
+  // Add any other courts as needed
+];

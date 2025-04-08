@@ -3,7 +3,8 @@
 // Draft type options
 const draftTypes = [
     "General Bail",
-    "Anticipatory Bail"
+    "Anticipatory Bail",
+    "Interim Relief",
 ];
 
 // Court options
